@@ -4,10 +4,11 @@ Pseudo-code: guides/pseudocode/04_curator.md
 Kiểm tra:    pytest tests/test_04_curator.py
 Chạy thật:   python -m lab.curator
 """
+import json
 import re
 from pathlib import Path
 
-from .tasks import eval_markers   # có sẵn: định danh của tác vụ đánh giá, tính lúc chạy
+from .tasks import ROOT, eval_markers   # có sẵn: định danh của tác vụ đánh giá, tính lúc chạy
 
 # ---- CÓ SẴN, KHÔNG SỬA: kiểm tra và tách khối skill (phần dễ sai và liên quan bảo mật) ----------------
 SAFE_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -68,7 +69,66 @@ def curate_skills(results_dir="results", source_condition="baseline", out_dir=No
     model mặc định: make_model() (lab.model).
     Trả về: danh sách đường dẫn SKILL.md đã ghi.
     """
-    raise NotImplementedError("TODO: cài đặt curate_skills (xem guides/pseudocode/04_curator.md)")
+    output_dir = Path(out_dir) if out_dir is not None else ROOT / "skills" / "auto"
+    runs = []
+    for run_path in sorted((Path(results_dir) / source_condition).glob("*/run.json")):
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+        if run.get("role") != "learn":
+            continue
+
+        failed = [
+            (check["name"], check.get("detail", ""))
+            for check in run.get("checks", [])
+            if not check.get("passed", False)
+        ]
+        trace_path = run_path.with_name("trace.md")
+        trace = trace_path.read_text(encoding="utf-8")[-6000:] if trace_path.exists() else ""
+        runs.append((run.get("task", run_path.parent.name), failed, trace))
+
+    if not any(failed for _, failed, _ in runs):
+        print("Không có check thất bại ở tác vụ học; không gọi model.")
+        return []
+
+    examples = []
+    for task, failed, trace in runs:
+        checks = "\n".join(f"- {name}: {detail}" for name, detail in failed) or "(không có)"
+        examples.append(f"Tác vụ học: {task}\nCheck thất bại:\n{checks}\nCuối trace:\n{trace}")
+
+    prompt = (
+        "Bạn viết SKILL cho một tác tử lập trình và phân tích dữ liệu. "
+        "Từ các check thất bại và trace của tác vụ học dưới đây, hãy viết tối đa "
+        f"{max_skills} skill ngắn, tổng quát để tránh lỗi quy trình trên tác vụ mới cùng loại.\n"
+        "Không nêu ID tác vụ, tên tệp riêng của dữ liệu đầu vào, đáp án hoặc con số cụ thể. "
+        "Chỉ giữ tên tệp/khóa nếu đó là quy ước chung trong phản hồi check. "
+        "Mỗi skill có frontmatter YAML gồm name (chữ thường và gạch ngang) và "
+        "description bắt đầu bằng 'Use when' để nêu tình huống sử dụng. "
+        "Phần thân có tối đa 40 dòng chỉ dẫn mệnh lệnh, có bước tự kiểm tra.\n"
+        "Định dạng đầu ra, đúng từng ký tự:\n"
+        "=== SKILL: <name> ===\n"
+        "---\nname: <name>\ndescription: Use when ...\n---\n"
+        "<nội dung>\n=== END ===\n\n"
+        + "\n\n".join(examples)
+    )
+    if model is None:
+        from .model import make_model
+        model = make_model()
+    reply = model.invoke(prompt).content
+
+    written = []
+    for name, text in parse_skill_blocks(reply):
+        if len(written) >= max_skills:
+            break
+        problems = validate_skill(text, expected_name=name)
+        if problems:
+            print(f"Bỏ qua skill {name}: {', '.join(problems)}")
+            continue
+        skill_path = output_dir / name / "SKILL.md"
+        if skill_path in written:
+            continue
+        skill_path.parent.mkdir(parents=True, exist_ok=True)
+        skill_path.write_text(text.rstrip() + "\n", encoding="utf-8")
+        written.append(skill_path)
+    return written
 
 
 if __name__ == "__main__":
