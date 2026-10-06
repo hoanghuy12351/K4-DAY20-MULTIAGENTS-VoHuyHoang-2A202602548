@@ -9,7 +9,7 @@
 - Mô hình: `LAB_MODEL=openai:gpt-4o-mini`; `LAB_TEMPERATURE=0`; `recursion_limit=60` cho các lần chạy hiện có.
 - Deep Agents `0.7.21`, Python `3.12.15` trong Docker Linux; các kết quả đầu tiên đã chạy trực tiếp trên Windows, `code-learn` và `data-learn` baseline sau đó chạy lại trong Docker.
 - Đã quan sát ít nhất 8 lượt tác vụ học (6 kết quả hiện có và 2 kết quả baseline đã bị ghi đè). Chưa có ngân sách token riêng được ghi nhận.
-- Commit của tag `freeze`:
+- Commit của tag `freeze`: `bf40343`.
 
 ## 2. Giả thuyết (commit TRƯỚC tag `freeze`, Phần 4.0)
 
@@ -123,10 +123,10 @@ Nguồn: [code-learn run](../results/subagents/code-learn/run.json), [code-learn
 
 | Skill | Tổng quát hay riêng cho tác vụ học? | Đúng hay sai (nêu chỗ sai nếu có) | Độ dài, `description` và `skills_read` ở Phần 3.4 |
 | ----- | ----------------------------------- | --------------------------------- | ------------------------------------------------- |
-| `check-file-existence` | Tổng quát cho tác vụ xử lý dữ liệu có tệp đầu vào | Quy trình kiểm tra tệp đầu vào trước xử lý là đúng; không xử lý được lỗi lặp lệnh hoặc kiểm chứng tệp đầu ra | 10 dòng; `description` bắt đầu `Use when` và nêu lúc cần kiểm tra tệp; cả ba lượt học `skills_read=0` |
-| `validate-data-format` | Tổng quát cho dữ liệu có schema | Kiểm tra cột/kiểu trước xử lý là đúng nhưng chưa nêu các quy ước Acme về tiền, CSV, log hoặc test; chỉ dừng khi không khớp | 10 dòng; `description` bắt đầu `Use when` và nêu lúc cần kiểm tra định dạng; cả ba lượt học `skills_read=0` |
+| `check-file-existence` | Tổng quát cho tác vụ xử lý dữ liệu có tệp đầu vào; không chép tên tệp của tác vụ học | Kiểm tra đầu vào trước xử lý là hợp lý, nhưng bước dừng khi thiếu tệp không hướng dẫn tạo và kiểm chứng tệp đầu ra; không xử lý lỗi lặp lệnh khiến `data-learn` thất bại | 10 dòng, gồm 6 bước; `description` bắt đầu `Use when` và nêu lúc kiểm tra tệp đầu vào; cả ba lượt học `skills_read=0` |
+| `validate-data-format` | Tổng quát cho dữ liệu có schema; không chép cột hoặc đáp án của tác vụ học | Kiểm tra cột là hợp lý, nhưng bước 5 yêu cầu dừng đến khi dữ liệu được sửa. `data-learn` lại yêu cầu chính agent làm sạch dữ liệu bẩn, nên làm theo nguyên văn có thể khiến agent bỏ dở thay vì chuẩn hóa ngày, region và giá trị `-999`. Skill cũng không yêu cầu kiểm chứng đầu ra | 10 dòng, gồm 6 bước; `description` bắt đầu `Use when` và nêu lúc kiểm tra định dạng; cả ba lượt học `skills_read=0` |
 
-Với bộ skill cuối, lần chạy Phần 3.4 đạt `code-learn` **2/10**, **86.883 token**; `data-learn` **0/8**, **489.448 token**, `GraphRecursionError`; `logs-learn` **0/9**, **30.756 token**. Cả ba có `skills_read=0`, nên không quy bất kỳ check đạt được cho việc làm theo skill. Trace `code-learn` bắt đầu bằng `glob` và đọc tệp code, không đọc `skills/`; trace `data-learn` tiếp tục lặp lệnh `python3 -c` sai; trace `logs-learn` chỉ đọc `app.log` rồi dừng mà không ghi output. Bản chạy thử đầu đã lưu riêng ở `results/skills-auto-attempt1`: `code-learn` **4/10**, `data-learn` **0/8**, `logs-learn` **0/9**, cũng đều `skills_read=0`. Chênh lệch `code-learn` giữa hai lượt khi không đọc skill là bằng chứng nhiễu, không phải bằng chứng skill cải thiện.
+Với bộ skill cuối, lần chạy Phần 3.4 đạt `code-learn` **2/10**, **86.883 token**; `data-learn` **0/8**, **489.448 token**, `GraphRecursionError`; `logs-learn` **0/9**, **30.756 token**. Cả ba có `skills_read=0`, nên không quy bất kỳ check đạt được cho việc làm theo skill. Trace `code-learn` bắt đầu bằng `glob` và đọc tệp code, không đọc `skills/`; trace `data-learn` tiếp tục lặp lệnh `python3 -c` sai; trace `logs-learn` chỉ đọc `app.log` rồi dừng mà không ghi output. Bản chạy thử đầu đã lưu riêng ở `results/skills-auto-attempt1`: `code-learn` **4/10**, `data-learn` **0/8**, `logs-learn` **0/9**, cũng đều `skills_read=0`. Chênh lệch `code-learn` giữa hai lượt khi không đọc skill là bằng chứng nhiễu, không phải bằng chứng skill cải thiện. Hai skill đạt kiểm tra cấu trúc `validate_skill`, nhưng kiểm tra này không chứng minh nội dung hữu ích hoặc đúng cho mọi tác vụ.
 
 ## 7. Kết quả so sánh (Phần 4.3, 4.4)
 
