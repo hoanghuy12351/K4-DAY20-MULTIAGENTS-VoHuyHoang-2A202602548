@@ -1,7 +1,5 @@
 # Báo cáo Lab: Self evolving Agentic
 
-> Sao chép tệp này thành `report/REPORT.md` (đã làm ở Phần 0) và điền dần qua các Phần của lab. Xóa các dòng hướng dẫn dạng trích dẫn (bắt đầu bằng `>`). Văn phong kỹ thuật, ngắn gọn, mọi nhận định đi kèm số liệu hoặc bằng chứng. Trong buổi học: điền mục 1 đến 7 (bản nháp). Sau buổi học: hoàn thiện mục 8 đến 10.
-
 ## 1. Thông tin nhóm và cấu hình
 
 | Họ tên       | Mã sinh viên | Phần đóng góp |
@@ -75,7 +73,7 @@ Dữ liệu lấy từ `results/baseline/<tác vụ>/run.json` và `trace.md` c�
 
 Trong 23 check đưa vào phân loại, G có **9/23**, D **8/23**, E **6/23**. Tám check của `data-learn` cùng phát sinh từ một vòng lặp lệnh sai cú pháp và thiếu đầu ra; không phải tám nguyên nhân độc lập. D vẫn là nhóm lỗi dữ liệu/định dạng nổi bật ở `code-learn` và `logs-learn`; E là các quy ước tổ chức. `parse_price_all_formats` và `other_caller_fixed` cũng liên hệ cùng lỗi xử lý giá.
 
-Sau khi loại check hash test không tương thích xuống dòng, check kỹ thuật đạt **2/6** ở `code-learn`, **0/5** ở `data-learn` và **1/6** ở `logs-learn`, tổng **3/17**; check quy ước đạt **0/9**. `data-learn` không tạo đầu ra do vòng lặp `SyntaxError`, nên không có bằng chứng về giá trị tính toán. Trace `logs-learn` chỉ đọc `app.log`, không đọc README và không có bước kiểm chứng sau khi ghi JSON. Ở lần `code-learn` mới, lệnh pytest của agent gặp `ModuleNotFoundError: No module named 'inventory'`; ghi nhận đây là lỗi khi agent chạy lệnh kiểm tra, không phải bằng chứng mọi check kỹ thuật đều hỏng. Chưa có bằng chứng đủ để gán nhóm C hoặc F theo định nghĩa của guide.
+`python scripts/check_breakdown.py` đếm trực tiếp các artifact: baseline học đạt **3/18** check kỹ thuật, **0/9** check quy ước; token trung bình **155.844**. Sau khi loại riêng check hash test nghi sai do xuống dòng, phần phân tích còn **2/6** ở `code-learn`, **0/5** ở `data-learn` và **1/6** ở `logs-learn`, tổng **3/17** check kỹ thuật. `data-learn` không tạo đầu ra do vòng lặp `SyntaxError`, nên không có bằng chứng về giá trị tính toán. Trace `logs-learn` chỉ đọc `app.log`, không đọc README và không có bước kiểm chứng sau khi ghi JSON. Ở lần `code-learn` mới, lệnh pytest của agent gặp `ModuleNotFoundError: No module named 'inventory'`; ghi nhận đây là lỗi khi agent chạy lệnh kiểm tra, không phải bằng chứng mọi check kỹ thuật đều hỏng. Chưa có bằng chứng đủ để gán nhóm C hoặc F theo định nghĩa của guide.
 
 Skill có thể hướng dẫn kiểm tra các định dạng giá, quoting CSV, timezone, traceback/repeat count, kiểm chứng output và tránh lệnh Python một dòng có câu lệnh `with`; khi lệnh lỗi, agent cần đổi cách tiếp cận thay vì lặp nguyên lệnh. Đây là biện pháp đề xuất, chưa có số liệu chứng minh skill cải thiện kết quả. Skill không khắc phục được khác biệt CRLF/LF hay lỗi môi trường chạy test.
 
@@ -92,6 +90,8 @@ Ba subagent được định nghĩa trong `src/lab/subagents.py`: `explorer` kh�
 | logs-learn | 1/9 | 19,572 | 725 | 20,297 | 8.6 | 3 | 0 | Không có |
 
 Cả ba `run.json` có `error = null`, `skills_read = 0` và `skills_modified = false`. Tuy nhiên, `error = null` chỉ cho biết runner không bị ném lỗi, không bảo đảm mọi tool chạy thành công: `code-learn` có lỗi `asyncio` khi gọi pytest; `data-learn` có lỗi DNS khi cài pandas. Check `tests_not_modified` của `code-learn/subagents` cũng thất bại và chịu cùng vấn đề hash CRLF/LF đã ghi ở mục 4.
+
+`python scripts/check_breakdown.py` ghi nhận điều kiện `subagents` trên tác vụ học đạt **5/18** check kỹ thuật, **0/9** check quy ước; token trung bình **105.478**. Số liệu này bao gồm các lần chạy có lỗi công cụ nên chưa đủ để quy chênh lệch cho việc giao việc.
 
 **Quan sát giao việc:**
 
@@ -119,11 +119,14 @@ Nguồn: [code-learn run](../results/subagents/code-learn/run.json), [code-learn
 
 ## 6. Self-evolving: skill do curator sinh (Phần 3)
 
-- Số lần chạy curator, số skill bị xóa và lý do:
+- Curator chạy **3 lần** (lần đầu và 2 lần chạy lại, đúng giới hạn GUIDE). Lần đầu tạo ba skill: xóa `check-file-existence` vì khuyên tạo tệp placeholder khi thiếu dữ liệu; hai skill còn lại hợp lệ về định dạng nhưng cả ba lượt học đều có `skills_read=0`. Lần chạy lại thứ nhất tạo ví dụ riêng cho `sales.csv`/`answer.json` và một kiểm tra kiểu ngày trước bước chuyển đổi; xóa cả ba skill của lượt này vì không đủ tổng quát hoặc có nguy cơ sai. Trước lần chạy lại cuối, siết prompt curator để yêu cầu quy trình tổng quát, không chép code/đường dẫn từ trace và không giả định thư viện tùy chọn. Lần cuối tạo ba skill; xóa `implement-error-handling` vì gợi ý giá trị mặc định khi lỗi có thể che dữ liệu thiếu. **Hai skill cuối cùng được giữ nguyên văn đầu ra curator**, không sửa tay.
 
 | Skill | Tổng quát hay riêng cho tác vụ học? | Đúng hay sai (nêu chỗ sai nếu có) | Độ dài, `description` và `skills_read` ở Phần 3.4 |
 | ----- | ----------------------------------- | --------------------------------- | ------------------------------------------------- |
-|       |                                     |                                   |                                                   |
+| `check-file-existence` | Tổng quát cho tác vụ xử lý dữ liệu có tệp đầu vào | Quy trình kiểm tra tệp đầu vào trước xử lý là đúng; không xử lý được lỗi lặp lệnh hoặc kiểm chứng tệp đầu ra | 10 dòng; `description` bắt đầu `Use when` và nêu lúc cần kiểm tra tệp; cả ba lượt học `skills_read=0` |
+| `validate-data-format` | Tổng quát cho dữ liệu có schema | Kiểm tra cột/kiểu trước xử lý là đúng nhưng chưa nêu các quy ước Acme về tiền, CSV, log hoặc test; chỉ dừng khi không khớp | 10 dòng; `description` bắt đầu `Use when` và nêu lúc cần kiểm tra định dạng; cả ba lượt học `skills_read=0` |
+
+Với bộ skill cuối, lần chạy Phần 3.4 đạt `code-learn` **2/10**, **86.883 token**; `data-learn` **0/8**, **489.448 token**, `GraphRecursionError`; `logs-learn` **0/9**, **30.756 token**. Cả ba có `skills_read=0`, nên không quy bất kỳ check đạt được cho việc làm theo skill. Trace `code-learn` bắt đầu bằng `glob` và đọc tệp code, không đọc `skills/`; trace `data-learn` tiếp tục lặp lệnh `python3 -c` sai; trace `logs-learn` chỉ đọc `app.log` rồi dừng mà không ghi output. Bản chạy thử đầu đã lưu riêng ở `results/skills-auto-attempt1`: `code-learn` **4/10**, `data-learn` **0/8**, `logs-learn` **0/9**, cũng đều `skills_read=0`. Chênh lệch `code-learn` giữa hai lượt khi không đọc skill là bằng chứng nhiễu, không phải bằng chứng skill cải thiện.
 
 ## 7. Kết quả so sánh (Phần 4.3, 4.4)
 
@@ -146,11 +149,11 @@ Nguồn: [code-learn run](../results/subagents/code-learn/run.json), [code-learn
 
 ## 9. Hạn chế và tính hợp lệ
 
-> Nêu ít nhất 3 hạn chế và ảnh hưởng của từng hạn chế đến kết luận (ví dụ: chỉ 3 tác vụ mỗi vai trò, mỗi cấu hình chạy một lần, nhiễu của mô hình, tác vụ do giảng viên thiết kế sẵn quy ước, chỉ một mô hình).
-
-1.
-2.
-3.
+1. Mỗi vai trò chỉ có ba tác vụ thuộc ba họ do bài lab thiết kế. Trung bình từ ba điểm chịu ảnh hưởng lớn của một tác vụ; không suy rộng sang mọi công việc lập trình, dữ liệu hoặc vận hành.
+2. Mỗi tổ hợp điều kiện–tác vụ chỉ có một kết quả chính thức. Nhiệt độ 0 không loại bỏ mọi biến động của mô hình hay công cụ; một chênh lệch nhỏ không đủ chứng minh cải tiến ổn định.
+3. Các lần chạy học hiện chưa hoàn toàn đồng nhất về môi trường: `code-learn` và `data-learn` baseline mới chạy trong Docker, còn một số kết quả khác được tạo trực tiếp trên Windows. Lỗi pytest, DNS và vòng lặp `GraphRecursionError` có thể chi phối điểm/token; chỉ diễn giải từng trường hợp theo trace, không quy mọi chênh lệch cho subagent hoặc skill.
+4. Check `tests_not_modified` của `code-learn` có dấu hiệu sai do khác biệt CRLF/LF dù trace không sửa file test. Điểm thô chứa ít nhất một check có nguy cơ sai; báo cáo tách nó khỏi lỗi hành vi tác tử.
+5. Thí nghiệm dùng một cấu hình `openai:gpt-4o-mini`. Kết quả chỉ phản ánh model và harness này; không đủ để kết luận mọi mô hình hoặc hệ thống multi-agent có cùng hiệu quả.
 
 ## 10. Kết luận
 
